@@ -574,7 +574,11 @@ search_pincode = st.text_input(
     placeholder="e.g. 341501"
 )
 
-pin_district_for_map = None
+# District selected manually can also control the map.
+# A valid PIN lookup takes priority when both are provided.
+pin_district_for_map = (
+    selected_district if selected_district != "All" else None
+)
 
 
 if search_pincode.strip():
@@ -838,6 +842,79 @@ if search_pincode.strip():
                     st.bar_chart(
                         pin_risk_counts
                     )
+
+
+# ==================================================
+# MANUAL DISTRICT RISK PROFILE
+# ==================================================
+
+if selected_district != "All" and not search_pincode.strip():
+
+    manual_district_risk = get_district_risk(
+        selected_district
+    )
+
+    if not manual_district_risk.empty:
+
+        st.divider()
+        st.subheader(
+            f"🌊 {selected_district} Flood Risk Profile"
+        )
+
+        manual_total = len(manual_district_risk)
+
+        manual_very_high = (
+            manual_district_risk["risk_category"]
+            == "Very High"
+        ).sum()
+
+        manual_high = (
+            manual_district_risk["risk_category"]
+            == "High"
+        ).sum()
+
+        manual_max_flood = (
+            manual_district_risk["flood_affected_percent"]
+            .max()
+        )
+
+        mcol1, mcol2, mcol3, mcol4 = st.columns(4)
+
+        with mcol1:
+            st.metric("Sub-Districts", manual_total)
+
+        with mcol2:
+            st.metric("Very High Risk", manual_very_high)
+
+        with mcol3:
+            st.metric("High Risk", manual_high)
+
+        with mcol4:
+            st.metric(
+                "Maximum Flood-Affected",
+                f"{manual_max_flood:.2f}%"
+            )
+
+        st.write("**Flood-risk areas in this district:**")
+
+        manual_display_columns = [
+            "risk_rank",
+            "sub_district",
+            "flood_affected_percent",
+            "risk_category",
+            "risk_score"
+        ]
+
+        st.dataframe(
+            manual_district_risk[
+                manual_display_columns
+            ].sort_values(
+                "flood_affected_percent",
+                ascending=False
+            ),
+            width="stretch",
+            hide_index=True
+        )
 
 
 # ==================================================
