@@ -1088,7 +1088,167 @@ input::placeholder{
 .footer b{color:#40586c !important}
 
 /* ============================================================
-   10. RESPONSIVE + ACCESSIBILITY
+   11. FINAL CONTRAST + 3D POLISH OVERRIDES
+   These rules are intentionally last so Streamlit/BaseWeb theme
+   styles cannot turn controls or text unreadable.
+   ============================================================ */
+
+/* App/root surfaces */
+.stApp,
+[data-testid="stApp"],
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"],
+[data-testid="stMainBlockContainer"]{
+  color:#0b1b2b !important;
+}
+
+/* Sidebar labels and every control label */
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] label *,
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"],
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"] *{
+  color:#102033 !important;
+  -webkit-text-fill-color:#102033 !important;
+  opacity:1 !important;
+}
+
+/* Selectbox closed state — all BaseWeb layers */
+.stSelectbox [data-baseweb="select"],
+.stSelectbox [data-baseweb="select"] > div,
+.stSelectbox [data-baseweb="select"] > div > div,
+.stSelectbox [role="combobox"]{
+  background:#ffffff !important;
+  background-color:#ffffff !important;
+  color:#102033 !important;
+  -webkit-text-fill-color:#102033 !important;
+  border-color:#c8d7e1 !important;
+  opacity:1 !important;
+}
+
+.stSelectbox [data-baseweb="select"] span,
+.stSelectbox [data-baseweb="select"] div{
+  color:#102033 !important;
+  -webkit-text-fill-color:#102033 !important;
+}
+
+/* Selectbox dropdown is rendered in a portal, outside the sidebar. */
+body [data-baseweb="popover"],
+body [data-baseweb="popover"] > div,
+body [data-baseweb="menu"],
+body [role="listbox"]{
+  background:#ffffff !important;
+  color:#102033 !important;
+  border-color:#d5e3eb !important;
+}
+
+body [role="option"],
+body [role="option"] *{
+  background:#ffffff !important;
+  color:#102033 !important;
+  -webkit-text-fill-color:#102033 !important;
+  opacity:1 !important;
+}
+
+body [role="option"]:hover,
+body [role="option"][aria-selected="true"]{
+  background:#e7f7f7 !important;
+  color:#075985 !important;
+  -webkit-text-fill-color:#075985 !important;
+}
+
+/* Text inputs */
+.stTextInput input,
+.stNumberInput input,
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input{
+  background:#ffffff !important;
+  color:#102033 !important;
+  -webkit-text-fill-color:#102033 !important;
+  opacity:1 !important;
+}
+
+.stTextInput input::placeholder,
+[data-testid="stTextInput"] input::placeholder{
+  color:#71859a !important;
+  -webkit-text-fill-color:#71859a !important;
+  opacity:1 !important;
+}
+
+/* Expander text */
+[data-testid="stExpander"],
+[data-testid="stExpander"] *{
+  color:#102033 !important;
+}
+[data-testid="stExpander"] [data-testid="stMarkdownContainer"] *,
+[data-testid="stExpander"] p{
+  color:#20364b !important;
+}
+
+/* Streamlit alerts */
+[data-testid="stAlert"] p,
+[data-testid="stAlert"] span,
+[data-testid="stAlert"] div{
+  color:#173047 !important;
+}
+
+/* Extra 3D depth: luminous horizon + soft volumetric glow */
+.aegis-scene::before{
+  content:"";
+  position:absolute;
+  left:-10%;
+  right:-10%;
+  bottom:4%;
+  height:240px;
+  border-radius:50%;
+  background:
+    radial-gradient(ellipse at center,
+      rgba(17,177,185,.13) 0%,
+      rgba(17,177,185,.055) 25%,
+      transparent 68%);
+  filter:blur(14px);
+  animation:aegisHorizon 10s ease-in-out infinite alternate;
+}
+
+.aegis-scene::after{
+  content:"";
+  position:absolute;
+  width:700px;
+  height:700px;
+  left:40%;
+  top:22%;
+  border-radius:50%;
+  background:
+    radial-gradient(circle,
+      transparent 0 43%,
+      rgba(8,127,134,.035) 43.2% 43.45%,
+      transparent 43.7% 55%,
+      rgba(8,127,134,.025) 55.2% 55.45%,
+      transparent 55.8%);
+  transform:translate(-50%,-50%);
+  animation:aegisDepthRing 22s linear infinite;
+}
+
+@keyframes aegisHorizon{
+  from{transform:translateX(-35px) scaleX(.94)}
+  to{transform:translateX(35px) scaleX(1.06)}
+}
+@keyframes aegisDepthRing{
+  from{transform:translate(-50%,-50%) rotate(0deg) scale(.92)}
+  to{transform:translate(-50%,-50%) rotate(360deg) scale(1.05)}
+}
+
+/* Make glass surfaces remain opaque enough for readability */
+.card,
+.risk-banner,
+.aegis-strip,
+div[data-testid="stMetric"],
+[data-testid="stDataFrame"]{
+  position:relative;
+  z-index:25 !important;
+}
+
+/* ============================================================
+   12. RESPONSIVE + ACCESSIBILITY
    ============================================================ */
 @media(max-width:850px){
   .block-container{
