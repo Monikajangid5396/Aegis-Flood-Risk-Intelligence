@@ -1034,7 +1034,107 @@ else:
                     predicted_category
                 )
             
-            # Explanainable AI - risk driverss
+            # ============================================================
+            # AI RISK RECOMMENDATIONS & ALERT PANEL
+            # ============================================================
+
+            st.subheader("🚨 AI Risk Recommendations & Alert Panel")
+
+            risk_recommendations = {
+                "Low": {
+                    "icon": "🟢",
+                    "title": "Low Risk – Normal Monitoring",
+                    "message": (
+                        "Current model estimate indicates relatively low "
+                        "flood risk."
+                    ),
+                    "actions": [
+                        "Continue routine monitoring of rainfall conditions",
+                        "Keep local drainage systems maintained",
+                        "Stay informed about weather updates"
+                    ]
+                },
+                "Moderate": {
+                    "icon": "🟡",
+                    "title": "Moderate Risk – Preventive Preparedness",
+                    "message": (
+                        "Preventive action is recommended as flood risk "
+                        "may increase."
+                    ),
+                    "actions": [
+                        "Monitor rainfall and weather conditions closely",
+                        "Inspect drainage and waterlogging-prone areas",
+                        "Keep emergency contacts and resources ready"
+                    ]
+                },
+                "High": {
+                    "icon": "🟠",
+                    "title": "High Risk – Enhanced Monitoring",
+                    "message": (
+                        "Elevated flood risk detected. Preparedness actions "
+                        "should be initiated."
+                    ),
+                    "actions": [
+                        "Closely monitor rainfall and changing weather conditions",
+                        "Check drainage and waterlogging-prone areas",
+                        "Keep emergency response resources ready",
+                        "Review local emergency response procedures"
+                    ]
+                },
+                "Very High": {
+                    "icon": "🔴",
+                    "title": "Very High Risk – Emergency Preparedness",
+                    "message": (
+                        "Very high flood risk detected. Immediate preparedness "
+                        "and enhanced monitoring are recommended."
+                    ),
+                    "actions": [
+                        "Activate enhanced flood-risk monitoring",
+                        "Prepare evacuation and emergency response plans",
+                        "Alert vulnerable and high-risk areas",
+                        "Keep emergency response teams and resources ready",
+                        "Follow instructions from local disaster-management authorities"
+                    ]
+                }
+            }
+
+            recommendation = risk_recommendations.get(
+                predicted_category,
+                risk_recommendations["Moderate"]
+            )
+
+            if predicted_category == "Very High":
+                st.error(
+                    f"{recommendation['icon']} **{recommendation['title']}**"
+                )
+            elif predicted_category == "High":
+                st.warning(
+                    f"{recommendation['icon']} **{recommendation['title']}**"
+                )
+            elif predicted_category == "Moderate":
+                st.info(
+                    f"{recommendation['icon']} **{recommendation['title']}**"
+                )
+            else:
+                st.success(
+                    f"{recommendation['icon']} **{recommendation['title']}**"
+                )
+
+            st.write(recommendation["message"])
+
+            st.markdown("### 📋 Recommended Actions")
+
+            for action in recommendation["actions"]:
+                st.markdown(f"- ✅ {action}")
+
+            st.caption(
+                "⚠️ These are AI-assisted decision-support suggestions "
+                "based on the model-estimated risk category. They do not "
+                "replace official warnings or instructions from "
+                "disaster-management authorities."
+            )
+
+            # Explainable AI - risk drivers
             st.subheader("🧠 Why This Risk Level?")
             st.caption(
                 "The explanation below is based on the actual "
