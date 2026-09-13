@@ -595,6 +595,300 @@ html, body,
 /* ============================================================
    3. CONTENT LAYER
    ============================================================ */
+
+/* ============================================================
+   AEGIS PREMIUM UX v2 — SPACIOUS COMMAND-DASHBOARD LAYOUT
+   Better hierarchy, centered content, glass cards, hover depth
+   ============================================================ */
+
+/* Main content should feel like a dashboard, not a long document. */
+.block-container{
+  max-width:1560px !important;
+  padding:1.35rem 2.6rem 4rem !important;
+}
+
+/* Keep the sidebar compact so the intelligence canvas gets more room. */
+[data-testid="stSidebar"]{
+  min-width:220px !important;
+  max-width:220px !important;
+}
+[data-testid="stSidebarContent"]{
+  padding:1.15rem .95rem 1.5rem !important;
+}
+
+/* Give major Streamlit vertical blocks breathing room. */
+.main [data-testid="stVerticalBlock"] > div{
+  transition:transform .2s ease;
+}
+
+/* Premium section heading */
+.section-head{
+  position:relative;
+  padding:4px 2px 11px 15px;
+  margin:31px 0 15px;
+}
+.section-head::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:3px;
+  width:4px;
+  height:42px;
+  border-radius:99px;
+  background:linear-gradient(180deg,#079bc0,#087f86);
+  box-shadow:0 0 18px rgba(8,127,134,.25);
+}
+.section-title{
+  font-size:1.48rem !important;
+  letter-spacing:-.025em;
+}
+.section-desc{
+  max-width:900px;
+}
+
+/* A subtle "dashboard canvas" behind page content */
+.main .block-container::before{
+  content:"";
+  position:absolute;
+  inset:10px 0 auto 0;
+  height:180px;
+  pointer-events:none;
+  background:radial-gradient(ellipse at 50% 0%,rgba(8,127,134,.055),transparent 68%);
+  z-index:-1;
+}
+
+/* ============================================================
+   PREMIUM HOVER SYSTEM
+   ============================================================ */
+
+/* Cards */
+.card{
+  position:relative !important;
+  overflow:hidden !important;
+  transform:translateZ(0);
+}
+.card::before{
+  content:"";
+  position:absolute;
+  inset:-80% 45% 45% -35%;
+  background:radial-gradient(circle,rgba(45,212,191,.13),transparent 68%);
+  opacity:0;
+  transition:opacity .3s ease,transform .35s ease;
+  pointer-events:none;
+}
+.card:hover::before{
+  opacity:1;
+  transform:translate3d(18px,14px,0);
+}
+
+/* Metrics get a floating glass effect */
+div[data-testid="stMetric"]{
+  min-height:108px !important;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+div[data-testid="stMetric"]::after{
+  content:"";
+  position:absolute;
+  width:90px;height:90px;
+  right:-32px;bottom:-42px;
+  border-radius:50%;
+  border:1px solid rgba(8,127,134,.10);
+  transition:transform .35s ease,opacity .35s ease;
+  opacity:.5;
+}
+div[data-testid="stMetric"]:hover::after{
+  transform:scale(1.45);
+  opacity:1;
+}
+
+/* Risk banners */
+.risk-banner{
+  position:relative !important;
+  overflow:hidden !important;
+}
+.risk-banner::after{
+  content:"";
+  position:absolute;
+  top:-80px;right:-60px;
+  width:170px;height:170px;
+  border-radius:50%;
+  border:1px solid rgba(8,127,134,.10);
+  box-shadow:0 0 0 22px rgba(8,127,134,.025),
+             0 0 0 46px rgba(8,127,134,.018);
+  transition:transform .4s ease;
+  pointer-events:none;
+}
+.risk-banner:hover::after{
+  transform:scale(1.16) rotate(12deg);
+}
+
+/* Buttons: lift + moving shine */
+.stButton>button,
+[data-testid="stFormSubmitButton"] button{
+  position:relative !important;
+  overflow:hidden !important;
+}
+.stButton>button::before,
+[data-testid="stFormSubmitButton"] button::before{
+  content:"";
+  position:absolute;
+  top:0;left:-120%;
+  width:55%;height:100%;
+  background:linear-gradient(105deg,transparent,rgba(255,255,255,.23),transparent);
+  transform:skewX(-20deg);
+  transition:left .55s ease;
+}
+.stButton>button:hover::before,
+[data-testid="stFormSubmitButton"] button:hover::before{
+  left:135%;
+}
+
+/* Inputs */
+[data-baseweb="input"]>div,
+[data-baseweb="select"]>div{
+  transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease !important;
+}
+[data-baseweb="input"]>div:hover,
+[data-baseweb="select"]>div:hover{
+  border-color:#72b9c3 !important;
+  box-shadow:0 7px 20px rgba(8,127,134,.09) !important;
+  transform:translateY(-1px);
+}
+[data-baseweb="input"]>div:focus-within,
+[data-baseweb="select"]>div:focus-within{
+  border-color:#087f86 !important;
+  box-shadow:0 0 0 3px rgba(8,127,134,.11),0 9px 24px rgba(8,127,134,.10) !important;
+}
+
+/* Sidebar navigation */
+[data-testid="stSidebar"] .stRadio label{
+  position:relative !important;
+  overflow:hidden !important;
+  margin:3px 0 !important;
+  border:1px solid transparent !important;
+}
+[data-testid="stSidebar"] .stRadio label:hover{
+  border-color:#cce7e8 !important;
+}
+[data-testid="stSidebar"] .stRadio label:has(input:checked){
+  background:linear-gradient(90deg,#e4f7f7,#f6fbfc) !important;
+  border-color:#b8dfe2 !important;
+  box-shadow:0 8px 20px rgba(8,127,134,.09) !important;
+}
+
+/* Tables */
+[data-testid="stDataFrame"]{
+  transition:transform .2s ease,box-shadow .2s ease !important;
+}
+[data-testid="stDataFrame"]:hover{
+  transform:translateY(-3px) !important;
+  box-shadow:0 16px 36px rgba(15,35,55,.10) !important;
+}
+
+/* Tabs */
+[data-baseweb="tab"]{
+  padding:10px 14px !important;
+  transition:background .2s ease,transform .2s ease !important;
+}
+[data-baseweb="tab"]:hover{
+  transform:translateY(-1px);
+}
+
+/* Alerts / info panels */
+[data-testid="stAlert"]{
+  transition:transform .2s ease,box-shadow .2s ease !important;
+}
+[data-testid="stAlert"]:hover{
+  transform:translateY(-2px);
+  box-shadow:0 10px 24px rgba(15,35,55,.08) !important;
+}
+
+/* Expanders */
+[data-testid="stExpander"]{
+  border-radius:15px !important;
+  transition:box-shadow .2s ease,transform .2s ease !important;
+}
+[data-testid="stExpander"]:hover{
+  transform:translateY(-2px);
+  box-shadow:0 11px 28px rgba(15,35,55,.08) !important;
+}
+
+/* ============================================================
+   AI ENGINE — turn the input area into a polished control deck
+   ============================================================ */
+.ai-control-deck{
+  margin:8px 0 22px;
+  padding:20px 22px 7px;
+  border:1px solid #d5e6ec;
+  border-radius:22px;
+  background:rgba(255,255,255,.72);
+  box-shadow:0 16px 42px rgba(15,35,55,.07);
+  backdrop-filter:blur(16px);
+}
+.ai-control-title{
+  color:#102033 !important;
+  font-size:1rem;
+  font-weight:950;
+  margin-bottom:3px;
+}
+.ai-control-sub{
+  color:#5b6f83 !important;
+  font-size:.78rem;
+  margin-bottom:15px;
+}
+
+/* Hero has stronger depth and hover response */
+.hero{
+  transition:transform .35s ease,box-shadow .35s ease !important;
+}
+.hero:hover{
+  transform:translateY(-3px) !important;
+  box-shadow:0 38px 85px rgba(5,29,49,.27) !important;
+}
+
+/* Brand mark micro-interaction */
+.brand-mark{
+  transition:transform .25s ease,box-shadow .25s ease;
+}
+.aegis-brand:hover .brand-mark{
+  transform:rotate(-5deg) scale(1.06);
+  box-shadow:0 17px 35px rgba(7,89,133,.30);
+}
+
+/* Strip items react like status chips */
+.aegis-strip span{
+  transition:background .2s ease,transform .2s ease;
+  border-radius:8px;
+}
+.aegis-strip span:hover{
+  background:#eef9f9;
+  transform:translateY(-1px);
+}
+
+/* Map frame */
+[data-testid="stDeckGlJsonChart"]{
+  border-radius:20px !important;
+  overflow:hidden !important;
+  box-shadow:0 20px 45px rgba(15,35,55,.12) !important;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media(max-width:1100px){
+  .block-container{padding-left:1.25rem !important;padding-right:1.25rem !important;}
+}
+@media(max-width:850px){
+  [data-testid="stSidebar"]{
+    min-width:100% !important;
+    max-width:100% !important;
+  }
+  .block-container{padding:1rem !important;}
+  .hero{border-radius:20px !important;}
+}
+
 .main .block-container{
   position:relative !important;
   z-index:20 !important;
@@ -1279,6 +1573,220 @@ div[data-testid="stMetric"],
     transition:none !important;
   }
 }
+
+/* ============================================================
+   AEGIS v3 — FINAL LAYOUT & OVERFLOW FIX
+   Fixes clipped sidebar/status card and keeps ALL components
+   inside their available space.
+   ============================================================ */
+
+/* ---------- SIDEBAR: enough room for every label/card ---------- */
+[data-testid="stSidebar"]{
+  width:270px !important;
+  min-width:270px !important;
+  max-width:270px !important;
+  overflow-x:hidden !important;
+  box-sizing:border-box !important;
+}
+
+[data-testid="stSidebar"] > div:first-child,
+[data-testid="stSidebarContent"],
+[data-testid="stSidebarUserContent"]{
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+  overflow-x:hidden !important;
+}
+
+[data-testid="stSidebarContent"]{
+  padding:18px 14px 22px !important;
+}
+
+/* ---------- SIDEBAR BRAND ---------- */
+[data-testid="stSidebar"] .aegis-brand{
+  width:100% !important;
+  box-sizing:border-box !important;
+  gap:10px !important;
+  padding:4px 2px 17px !important;
+}
+[data-testid="stSidebar"] .brand-mark{
+  width:44px !important;
+  min-width:44px !important;
+  height:44px !important;
+  border-radius:14px !important;
+}
+[data-testid="stSidebar"] .brand-name{
+  font-size:1.25rem !important;
+}
+[data-testid="stSidebar"] .brand-sub{
+  font-size:.64rem !important;
+  white-space:nowrap !important;
+}
+
+/* ---------- SIDEBAR NAV: no text clipping ---------- */
+[data-testid="stSidebar"] .stRadio{
+  width:100% !important;
+}
+[data-testid="stSidebar"] .stRadio label{
+  width:100% !important;
+  min-width:0 !important;
+  box-sizing:border-box !important;
+  padding:8px 8px !important;
+  margin:2px 0 !important;
+}
+[data-testid="stSidebar"] .stRadio label p,
+[data-testid="stSidebar"] .stRadio label span{
+  white-space:nowrap !important;
+  overflow:visible !important;
+  text-overflow:clip !important;
+  font-size:.78rem !important;
+}
+
+/* ---------- STATUS CARD: THE CLIPPED PART IS FIXED ---------- */
+[data-testid="stSidebar"] .card{
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  box-sizing:border-box !important;
+  padding:15px 13px !important;
+  overflow:hidden !important;
+}
+
+[data-testid="stSidebar"] .card-title{
+  font-size:.82rem !important;
+  line-height:1.25 !important;
+  margin-bottom:8px !important;
+  white-space:nowrap !important;
+}
+
+[data-testid="stSidebar"] .status-row{
+  width:100% !important;
+  min-width:0 !important;
+  box-sizing:border-box !important;
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) auto !important;
+  column-gap:8px !important;
+  align-items:center !important;
+  padding:7px 0 !important;
+  font-size:.69rem !important;
+  line-height:1.25 !important;
+}
+
+[data-testid="stSidebar"] .status-row span{
+  min-width:0 !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+  color:#304256 !important;
+}
+
+[data-testid="stSidebar"] .status-row b{
+  flex-shrink:0 !important;
+  white-space:nowrap !important;
+  font-size:.68rem !important;
+  color:#087f86 !important;
+}
+
+/* Sidebar footer captions stay inside width */
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] *{
+  max-width:100% !important;
+  box-sizing:border-box !important;
+  overflow-wrap:anywhere !important;
+  font-size:.67rem !important;
+  line-height:1.4 !important;
+}
+
+/* ---------- SIDEBAR FILTERS ---------- */
+[data-testid="stSidebar"] [data-testid="stSelectbox"],
+[data-testid="stSidebar"] [data-testid="stTextInput"]{
+  width:100% !important;
+  min-width:0 !important;
+}
+[data-testid="stSidebar"] [data-baseweb="select"]{
+  width:100% !important;
+  min-width:0 !important;
+}
+[data-testid="stSidebar"] [data-baseweb="select"] > div{
+  min-height:40px !important;
+  box-sizing:border-box !important;
+}
+
+/* ---------- MAIN CANVAS: balanced width ---------- */
+.main .block-container{
+  max-width:1480px !important;
+  width:100% !important;
+  box-sizing:border-box !important;
+  padding-left:2.2rem !important;
+  padding-right:2.2rem !important;
+}
+
+/* Never allow custom cards to push a column horizontally */
+.main .card,
+.main .risk-banner,
+.main .aegis-strip,
+.main .ai-control-deck{
+  max-width:100% !important;
+  box-sizing:border-box !important;
+}
+
+/* ---------- METRICS: consistent card height and no overflow ---------- */
+.main div[data-testid="stMetric"]{
+  width:100% !important;
+  min-width:0 !important;
+  box-sizing:border-box !important;
+  min-height:104px !important;
+}
+.main div[data-testid="stMetric"] [data-testid="stMetricValue"]{
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+
+/* ---------- INPUT DECK: clean two-column layout ---------- */
+.ai-control-deck{
+  width:100% !important;
+  box-sizing:border-box !important;
+  padding:19px 20px 8px !important;
+}
+.ai-control-deck .stNumberInput{
+  margin-bottom:5px !important;
+}
+
+/* ---------- TABLES / MAP: stay within viewport ---------- */
+[data-testid="stDataFrame"],
+[data-testid="stDeckGlJsonChart"]{
+  width:100% !important;
+  max-width:100% !important;
+  box-sizing:border-box !important;
+}
+
+/* ---------- SECTION HEADINGS: never collide with background ---------- */
+.section-head{
+  width:100% !important;
+  box-sizing:border-box !important;
+  padding-left:15px !important;
+}
+
+/* ---------- MOBILE / NARROW WINDOW ---------- */
+@media(max-width:900px){
+  [data-testid="stSidebar"]{
+    width:250px !important;
+    min-width:250px !important;
+    max-width:250px !important;
+  }
+  .main .block-container{
+    padding-left:1rem !important;
+    padding-right:1rem !important;
+  }
+}
+@media(max-width:700px){
+  [data-testid="stSidebar"]{
+    width:100% !important;
+    min-width:100% !important;
+    max-width:100% !important;
+  }
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -1356,21 +1864,55 @@ with st.sidebar:
 # FILTER DATA
 # ================================================================
 
+# ================================================================
+# GLOBAL FILTER DATA
+# These filters drive the Command Center AND the Risk Command Map.
+# Sub-district search is resolved against the full dataset first,
+# then the district/risk filters are applied.
+# ================================================================
+
 filtered_data = risk_data.copy()
 
 if selected_district != "All":
-    filtered_data = filtered_data[filtered_data["district"] == selected_district]
+    district_key = normalize_text(selected_district)
+    filtered_data = filtered_data[
+        filtered_data["district"].apply(normalize_text) == district_key
+    ].copy()
 
 if selected_risk != "All":
-    filtered_data = filtered_data[filtered_data["risk_category"] == selected_risk]
+    filtered_data = filtered_data[
+        filtered_data["risk_category"].apply(normalize_text)
+        == normalize_text(selected_risk)
+    ].copy()
 
 if search_subdistrict.strip():
-    filtered_data = find_subdistrict_matches(
+    sub_matches = find_subdistrict_matches(
         search_subdistrict,
-        filtered_data,
+        risk_data,
         limit=50,
         cutoff=0.55,
     )
+
+    # Keep only rows matching the current district/risk filters.
+    if selected_district != "All" and not sub_matches.empty:
+        sub_matches = sub_matches[
+            sub_matches["district"].apply(normalize_text)
+            == normalize_text(selected_district)
+        ].copy()
+
+    if selected_risk != "All" and not sub_matches.empty:
+        sub_matches = sub_matches[
+            sub_matches["risk_category"].apply(normalize_text)
+            == normalize_text(selected_risk)
+        ].copy()
+
+    filtered_data = sub_matches.copy()
+
+filter_active = (
+    selected_district != "All"
+    or selected_risk != "All"
+    or bool(search_subdistrict.strip())
+)
 
 
 # ================================================================
@@ -1409,14 +1951,14 @@ if page == "🏠 Command Center":
     </div>
     """, unsafe_allow_html=True)
 
-    total_subdistricts = len(risk_data)
-    total_districts = risk_data["district"].nunique()
-    low = int((risk_data["risk_category"] == "Low").sum())
-    moderate = int((risk_data["risk_category"] == "Moderate").sum())
-    high = int((risk_data["risk_category"] == "High").sum())
-    very_high = int((risk_data["risk_category"] == "Very High").sum())
+    total_subdistricts = len(filtered_data)
+    total_districts = filtered_data["district"].nunique()
+    low = int((filtered_data["risk_category"] == "Low").sum())
+    moderate = int((filtered_data["risk_category"] == "Moderate").sum())
+    high = int((filtered_data["risk_category"] == "High").sum())
+    very_high = int((filtered_data["risk_category"] == "Very High").sum())
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4 = st.columns(4, gap="medium")
     c1.metric("Monitored Records", total_subdistricts)
     c2.metric("Districts Covered", total_districts)
     c3.metric("High + Very High", high + very_high)
@@ -1429,22 +1971,22 @@ if page == "🏠 Command Center":
     </div>
     """, unsafe_allow_html=True)
 
-    r1, r2, r3, r4 = st.columns(4)
+    r1, r2, r3, r4 = st.columns(4, gap="medium")
     r1.metric("🟢 Low", low)
     r2.metric("🟡 Moderate", moderate)
     r3.metric("🟠 High", high)
     r4.metric("🔴 Very High", very_high)
 
-    left, right = st.columns([1.15, .85])
+    left, right = st.columns([1.08, .92], gap="large")
 
     with left:
         st.markdown("#### Risk Distribution")
-        counts = risk_data["risk_category"].value_counts().reindex(RISK_ORDER, fill_value=0)
+        counts = filtered_data["risk_category"].value_counts().reindex(RISK_ORDER, fill_value=0)
         st.bar_chart(counts, height=310)
 
     with right:
         st.markdown("#### Critical Areas")
-        top = risk_data.sort_values("flood_affected_percent", ascending=False).head(8)
+        top = filtered_data.sort_values("flood_affected_percent", ascending=False).head(8)
         st.dataframe(
             top[["district", "sub_district", "flood_affected_percent", "risk_category"]]
             .rename(columns={
@@ -1464,6 +2006,13 @@ if page == "🏠 Command Center":
         <div class="section-desc">Use the sidebar filters to narrow the operational view.</div>
     </div>
     """, unsafe_allow_html=True)
+
+    if filter_active:
+        st.info(
+            f"Active filters: District = {selected_district} • "
+            f"Risk = {selected_risk} • "
+            f"Sub-District = {search_subdistrict.strip() or 'All'}"
+        )
 
     f1, f2, f3 = st.columns(3)
     f1.metric("Matching Records", len(filtered_data))
@@ -1556,7 +2105,7 @@ elif page == "📍 Location Intelligence":
                     else:
                         st.success(f"PIN {pincode} resolved successfully.")
 
-                        p1, p2, p3 = st.columns(3)
+                        p1, p2, p3 = st.columns(3, gap="medium")
                         p1.metric("PIN Code", pincode)
                         p2.metric("District", api_district.title() or "—")
                         p3.metric("State", api_state.title() if api_state else "Rajasthan")
@@ -1590,7 +2139,7 @@ elif page == "📍 Location Intelligence":
                                 unsafe_allow_html=True,
                             )
 
-                            q1, q2, q3, q4 = st.columns(4)
+                            q1, q2, q3, q4 = st.columns(4, gap="medium")
                             q1.metric("Sub-Districts", len(district_risk))
                             q2.metric("Very High", int((district_risk["risk_category"] == "Very High").sum()))
                             q3.metric("High", int((district_risk["risk_category"] == "High").sum()))
@@ -1652,22 +2201,74 @@ elif page == "📍 Location Intelligence":
             if location_matches.empty:
                 st.warning("No matching sub-district found. Try a shorter spelling.")
             else:
+                display_matches = location_matches[
+                    ["district","sub_district","flood_affected_percent","risk_category","risk_score"]
+                ].sort_values(
+                    "flood_affected_percent",
+                    ascending=False,
+                ).rename(columns={
+                    "district":"District",
+                    "sub_district":"Sub-District",
+                    "flood_affected_percent":"Flood %",
+                    "risk_category":"Risk",
+                    "risk_score":"Score",
+                })
+
                 st.dataframe(
-                    location_matches[
-                        ["district","sub_district","flood_affected_percent","risk_category","risk_score"]
-                    ].sort_values(
-                        "flood_affected_percent",
-                        ascending=False,
-                    ).rename(columns={
-                        "district":"District",
-                        "sub_district":"Sub-District",
-                        "flood_affected_percent":"Flood %",
-                        "risk_category":"Risk",
-                        "risk_score":"Score",
-                    }),
+                    display_matches,
                     width="stretch",
                     hide_index=True,
                 )
+
+                # Show an immediate risk profile for the best fuzzy/exact match.
+                best_match = location_matches.sort_values(
+                    "flood_affected_percent",
+                    ascending=False
+                ).iloc[0]
+                matched_district = str(best_match["district"])
+                matched_category = str(best_match["risk_category"])
+
+                st.markdown(
+                    f'<div class="risk-banner risk-{matched_category.lower().replace(" ","-")}">'
+                    f'<strong>{RISK_UI[matched_category]["icon"]} '
+                    f'{best_match["sub_district"]} — {matched_category} Risk</strong><br>'
+                    f'<span class="card-muted">District: {matched_district} • '
+                    f'Flood-affected: {float(best_match["flood_affected_percent"]):.2f}% • '
+                    f'Risk score: {int(best_match["risk_score"])}</span></div>',
+                    unsafe_allow_html=True,
+                )
+
+                # The map is district-level, so focus the result on the matched district.
+                match_map = create_map_data(
+                    get_district_risk(matched_district)
+                )
+                coords = DISTRICT_COORDINATES.get(normalize_text(matched_district))
+                if coords and not match_map.empty:
+                    st.markdown("#### Matched District Map")
+                    match_layer = pdk.Layer(
+                        "ScatterplotLayer",
+                        data=match_map,
+                        get_position=["longitude", "latitude"],
+                        get_fill_color=["color[0]", "color[1]", "color[2]", 210],
+                        get_line_color=[255, 255, 255, 230],
+                        get_radius=18000,
+                        radius_min_pixels=8,
+                        radius_max_pixels=30,
+                        pickable=True,
+                        stroked=True,
+                        filled=True,
+                    )
+                    match_deck = pdk.Deck(
+                        layers=[match_layer],
+                        initial_view_state=pdk.ViewState(
+                            latitude=coords[0],
+                            longitude=coords[1],
+                            zoom=8,
+                            pitch=0,
+                        ),
+                        tooltip={"text": "{district} • {risk_category}"},
+                    )
+                    st.pydeck_chart(match_deck, width="stretch", height=380)
 
         st.markdown("#### Explore a District")
 
@@ -1690,7 +2291,7 @@ elif page == "📍 Location Intelligence":
                 unsafe_allow_html=True,
             )
 
-            m1, m2, m3, m4 = st.columns(4)
+            m1, m2, m3, m4 = st.columns(4, gap="medium")
             m1.metric("Sub-Districts", len(manual))
             m2.metric("Very High", int((manual["risk_category"] == "Very High").sum()))
             m3.metric("High", int((manual["risk_category"] == "High").sum()))
@@ -1730,6 +2331,17 @@ elif page == "🤖 AI Risk Engine":
 
     st.info("AI-assisted historical-model estimate — not a real-time operational flood forecast or exact PIN-level prediction.")
 
+    st.markdown("""
+    <div class="card" style="margin:10px 0 18px;">
+        <div class="card-title">How Aegis thinks</div>
+        <div class="card-muted">
+            Six weather signals are passed into the trained Ridge Regression model.
+            The resulting estimate is converted into a transparent Low → Very High risk category,
+            followed by explainable drivers and preparedness suggestions.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     if model_package is None:
         st.error("Prediction model not found. Run `python .\\src\\train_model.py` first.")
     else:
@@ -1737,7 +2349,11 @@ elif page == "🤖 AI Risk Engine":
         prediction_features = model_package["features"]
         defaults = risk_data[prediction_features].median()
 
-        st.markdown("#### Weather Conditions")
+        st.markdown("""
+        <div class="ai-control-deck">
+            <div class="ai-control-title">🌦️ Weather Input Control Deck</div>
+            <div class="ai-control-sub">Adjust the six weather variables below, then run the historical risk analysis.</div>
+        """, unsafe_allow_html=True)
 
         with st.form("prediction_form"):
             a, b = st.columns(2)
@@ -1751,6 +2367,8 @@ elif page == "🤖 AI Risk Engine":
                 max_daily_rainfall = st.number_input("Maximum Daily Rainfall (mm)", min_value=0.0, value=float(defaults["max_daily_rainfall_mm"]), step=5.0)
 
             submitted = st.form_submit_button("🔮 Analyze Flood Risk", type="primary", width="stretch")
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
         if submitted:
             input_values = {
@@ -1779,7 +2397,7 @@ elif page == "🤖 AI Risk Engine":
                 </div>
                 """, unsafe_allow_html=True)
 
-                r1, r2, r3 = st.columns(3)
+                r1, r2, r3 = st.columns(3, gap="medium")
                 r1.metric("Estimated Flood-Affected", f"{predicted_percent:.2f}%")
                 r2.metric("Risk Category", category)
                 r3.metric("Risk Score", RISK_SCORE[category])
@@ -1907,16 +2525,40 @@ elif page == "🗺️ Risk Command Map":
     st.markdown("""
     <div class="section-head">
         <div class="section-title">Risk Command Map</div>
-        <div class="section-desc">Interactive district-level view of the highest risk category present in each district.</div>
+        <div class="section-desc">Interactive district-level view driven by the active sidebar filters.</div>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">🗺️ Geospatial Risk Surface</div>
+        <div class="card-muted">Hover over a marker to inspect district risk intensity, affected-area statistics and the maximum risk score.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    map_data = create_map_data(risk_data)
+    # IMPORTANT: the map uses the same filtered dataset as the
+    # sidebar, so District / Risk / Sub-District filters are live.
+    if filter_active:
+        st.info(
+            f"Map filters: District = {selected_district} • "
+            f"Risk = {selected_risk} • "
+            f"Sub-District = {search_subdistrict.strip() or 'All'}"
+        )
+
+    map_data = create_map_data(filtered_data)
 
     if map_data.empty:
-        st.warning("Map coordinates are not available.")
+        if filter_active:
+            st.warning("No map locations match the current filters.")
+        else:
+            st.warning("Map coordinates are not available.")
     else:
         focus = selected_district if selected_district != "All" else None
+
+        # If a sub-district search is active and resolves to one district,
+        # focus the map on that district.
+        if focus is None and search_subdistrict.strip():
+            map_districts = filtered_data["district"].dropna().astype(str).unique().tolist()
+            if len(map_districts) == 1:
+                focus = map_districts[0]
+
         coords = DISTRICT_COORDINATES.get(normalize_text(focus)) if focus else None
 
         center_lat, center_lon, zoom = (
