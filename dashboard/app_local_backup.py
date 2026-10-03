@@ -1,14 +1,13 @@
 from pathlib import Path
-import io
 
 import joblib
 import pandas as pd
-import boto3
 import requests
 import difflib
 import re
 import pydeck as pdk
 import streamlit as st
+
 
 # ================================================================
 # PAGE CONFIGURATION
@@ -30,27 +29,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 RISK_DATA_PATH = BASE_DIR / "data" / "processed" / "aegis_risk_dashboard_data.csv"
 PIN_DATA_PATH = BASE_DIR / "data" / "processed" / "rajasthan_pincode_directory.csv"
-HISTORICAL_DATA_PATH = (
-    BASE_DIR / "data" / "processed" / "rajasthan_flood_weather_merged_1986_2025.csv"
-)
+HISTORICAL_DATA_PATH = BASE_DIR / "data" / "processed" / "rajasthan_flood_weather_merged_1986_2025.csv"
 MODEL_PATH = BASE_DIR / "models" / "ridge_flood_risk_model.joblib"
 
-# ================================================================
-# AWS S3 CONFIGURATION
-# ================================================================
-
-S3_BUCKET = "aegis-flood-risk-intelligence-2026"
-S3_REGION = "ap-south-1"
-
-s3_client = boto3.client(
-    "s3",
-    region_name=S3_REGION,
-)
-
-S3_RISK_DATA_KEY = "processed-data/aegis_risk_dashboard_data.csv"
-S3_PIN_DATA_KEY = "external-data/rajasthan_pincode_directory.csv"
-S3_HISTORICAL_DATA_KEY = "processed-data/rajasthan_flood_weather_merged_1986_2025.csv"
-S3_MODEL_KEY = "models/ridge_flood_risk_model.joblib"
 
 # ================================================================
 # CONSTANTS
@@ -122,158 +103,39 @@ ALIASES = {
 # DATA LOADING
 # ================================================================
 
-
-# ----------------------------------------------------------------
-# S3-FIRST DATA ACCESS
-# ----------------------------------------------------------------
-# Aegis tries AWS S3 first. If S3 is unavailable (credentials,
-# network, permissions, or object missing), it automatically falls
-# back to the local project files so the dashboard remains usable.
-S3_STATUS = {
-    "risk_data": "Not checked",
-    "pin_data": "Not checked",
-    "historical_data": "Not checked",
-    "model": "Not checked",
-}
-
-
-def _get_s3_client():
-    """Create an S3 client without hard-coding credentials."""
-    try:
-        # Streamlit secrets are optional. Local AWS CLI/env credentials
-        # are used automatically when secrets are not configured.
-        if hasattr(st, "secrets"):
-            aws_access_key = st.secrets.get("AWS_ACCESS_KEY_ID")
-            aws_secret_key = st.secrets.get("AWS_SECRET_ACCESS_KEY")
-            aws_session_token = st.secrets.get("AWS_SESSION_TOKEN")
-            if aws_access_key and aws_secret_key:
-                kwargs = {
-                    "aws_access_key_id": aws_access_key,
-                    "aws_secret_access_key": aws_secret_key,
-                    "region_name": S3_REGION,
-                }
-                if aws_session_token:
-                    kwargs["aws_session_token"] = aws_session_token
-                return boto3.client("s3", **kwargs)
-    except Exception:
-        pass
-
-    return boto3.client("s3", region_name=S3_REGION)
-
-
-def _load_s3_bytes(key):
-    """Return S3 object bytes, or None when S3 cannot be read."""
-    try:
-        client = _get_s3_client()
-        response = client.get_object(Bucket=S3_BUCKET, Key=key)
-        return response["Body"].read()
-    except Exception:
-        return None
-
-
-@st.cache_data(ttl=300, show_spinner=False)
-def _load_risk_data_cached():
-    """Load risk data and cache BOTH data and its source.
-
-    Important: do not mutate the global S3_STATUS inside a cached
-    function because Streamlit may return the cached value without
-    executing the function again, leaving the UI stuck on "Checking".
-    """
-    raw = _load_s3_bytes(S3_RISK_DATA_KEY)
-    if raw is not None:
-        try:
-            data = pd.read_csv(io.BytesIO(raw))
-            if not data.empty:
-                return data, "S3"
-        except Exception:
-            pass
-
-    if not RISK_DATA_PATH.exists():
-        return pd.DataFrame(), "Local fallback"
-    return pd.read_csv(RISK_DATA_PATH), "Local fallback"
-
+@st.cache_data
 
 def load_risk_data():
-    data, source = _load_risk_data_cached()
-    S3_STATUS["risk_data"] = source
-    return data
+    if not RISK_DATA_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(RISK_DATA_PATH)
 
 
-@st.cache_data(ttl=300, show_spinner=False)
-def _load_pin_data_cached():
-    raw = _load_s3_bytes(S3_PIN_DATA_KEY)
-    if raw is not None:
-        try:
-            data = pd.read_csv(io.BytesIO(raw))
-            if not data.empty:
-                return data, "S3"
-        except Exception:
-            pass
-
-    if not PIN_DATA_PATH.exists():
-        return pd.DataFrame(), "Local fallback"
-    return pd.read_csv(PIN_DATA_PATH), "Local fallback"
-
+@st.cache_data
 
 def load_pin_data():
-    data, source = _load_pin_data_cached()
-    S3_STATUS["pin_data"] = source
-    return data
+    if not PIN_DATA_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(PIN_DATA_PATH)
 
 
-@st.cache_data(ttl=300, show_spinner=False)
-def _load_historical_data_cached():
-    raw = _load_s3_bytes(S3_HISTORICAL_DATA_KEY)
-    if raw is not None:
-        try:
-            data = pd.read_csv(io.BytesIO(raw))
-            if not data.empty:
-                return data, "S3"
-        except Exception:
-            pass
-
-    if not HISTORICAL_DATA_PATH.exists():
-        return pd.DataFrame(), "Local fallback"
-    return pd.read_csv(HISTORICAL_DATA_PATH), "Local fallback"
-
+@st.cache_data
 
 def load_historical_data():
-    data, source = _load_historical_data_cached()
-    S3_STATUS["historical_data"] = source
-    return data
+    if not HISTORICAL_DATA_PATH.exists():
+        return pd.DataFrame()
+    return pd.read_csv(HISTORICAL_DATA_PATH)
 
 
 @st.cache_resource
-def _load_prediction_model_cached():
-    raw = _load_s3_bytes(S3_MODEL_KEY)
-    if raw is not None:
-        try:
-            model = joblib.load(io.BytesIO(raw))
-            return model, "S3"
-        except Exception:
-            pass
-
-    if not MODEL_PATH.exists():
-        return None, "Local fallback"
-    try:
-        return joblib.load(MODEL_PATH), "Local fallback"
-    except Exception:
-        return None, "Local fallback"
-
 
 def load_prediction_model():
-    model, source = _load_prediction_model_cached()
-    S3_STATUS["model"] = source
-    return model
-
-
-def get_data_source_label():
-    statuses = list(S3_STATUS.values())
-    if statuses and all(status == "S3" for status in statuses):
-        return "AWS S3"
-    if any(status == "S3" for status in statuses):
-        return "AWS S3 + Local Fallback"
-    return "Local Fallback"
+    if not MODEL_PATH.exists():
+        return None
+    try:
+        return joblib.load(MODEL_PATH)
+    except Exception:
+        return None
 
 
 risk_data = load_risk_data()
@@ -286,19 +148,12 @@ model_package = load_prediction_model()
 # HELPERS
 # ================================================================
 
-
 def normalize_text(value):
     if pd.isna(value):
         return ""
     return (
-        str(value)
-        .strip()
-        .upper()
-        .replace("-", " ")
-        .replace(".", "")
-        .replace("'", "")
-        .replace("(", "")
-        .replace(")", "")
+        str(value).strip().upper().replace("-", " ").replace(".", "")
+        .replace("'", "").replace("(", "").replace(")", "")
     )
 
 
@@ -313,9 +168,7 @@ def normalize_pincode(value):
 
 @st.cache_data(ttl=3600)
 def lookup_pincode(pincode):
-    api_url = (
-        f"https://aniket-thapa.github.io/india-pincode-api/pincodes/{pincode}.json"
-    )
+    api_url = f"https://aniket-thapa.github.io/india-pincode-api/pincodes/{pincode}.json"
     try:
         response = requests.get(api_url, timeout=15)
         if response.status_code == 404:
@@ -346,6 +199,7 @@ def get_district_risk(district_name):
     if alias:
         return copy[copy["_district_normalized"] == alias].copy()
     return pd.DataFrame()
+
 
 
 def _subdistrict_mapping(data):
@@ -394,7 +248,9 @@ def find_subdistrict_matches(query, data, limit=50, cutoff=0.55):
             ordered.append(key)
 
     names = [mapping[key] for key in ordered[:limit]]
-    return data[data["sub_district"].astype(str).str.strip().isin(names)].copy()
+    return data[
+        data["sub_district"].astype(str).str.strip().isin(names)
+    ].copy()
 
 
 def best_subdistrict_correction(query, data, cutoff=0.55):
@@ -415,6 +271,7 @@ def best_subdistrict_correction(query, data, cutoff=0.55):
         cutoff=cutoff,
     )
     return mapping[match[0]] if match else None
+
 
 
 def category_from_percent(value):
@@ -440,25 +297,23 @@ def create_map_data(data):
 
         max_score = int(group["risk_score"].max())
         category = RISK_ORDER[max_score - 1] if 1 <= max_score <= 4 else "Low"
-        rows.append(
-            {
-                "district": district,
-                "latitude": coords[0],
-                "longitude": coords[1],
-                "risk_category": category,
-                "very_high_risk": int((group["risk_category"] == "Very High").sum()),
-                "high_risk": int((group["risk_category"] == "High").sum()),
-                "max_flood_percent": float(group["flood_affected_percent"].max()),
-                "avg_flood_percent": float(group["flood_affected_percent"].mean()),
-                "risk_score": max_score,
-                "color": {
-                    "Low": [40, 167, 69],
-                    "Moderate": [255, 193, 7],
-                    "High": [255, 140, 0],
-                    "Very High": [220, 53, 69],
-                }[category],
-            }
-        )
+        rows.append({
+            "district": district,
+            "latitude": coords[0],
+            "longitude": coords[1],
+            "risk_category": category,
+            "very_high_risk": int((group["risk_category"] == "Very High").sum()),
+            "high_risk": int((group["risk_category"] == "High").sum()),
+            "max_flood_percent": float(group["flood_affected_percent"].max()),
+            "avg_flood_percent": float(group["flood_affected_percent"].mean()),
+            "risk_score": max_score,
+            "color": {
+                "Low": [40, 167, 69],
+                "Moderate": [255, 193, 7],
+                "High": [255, 140, 0],
+                "Very High": [220, 53, 69],
+            }[category],
+        })
     return pd.DataFrame(rows)
 
 
@@ -520,13 +375,15 @@ if risk_data.empty:
     st.stop()
 
 
+
+
+
 # ================================================================
 # AEGIS PREMIUM VISUAL SYSTEM — SINGLE CONSOLIDATED CSS
 # High-contrast + 3D flood/water atmosphere + hover interactions
 # ================================================================
 
-st.markdown(
-    """
+st.markdown("""
 <style>
 /* ============================================================
    AEGIS — WORLD-CLASS FLOOD INTELLIGENCE UI
@@ -1930,240 +1787,10 @@ div[data-testid="stMetric"],
   }
 }
 
-
-<style>
-/* ============================================================
-   AEGIS FINAL SIDEBAR SCROLL ENGINE
-   Streamlit 1.62 compatible — force the sidebar content itself
-   to become the vertical scroll surface without affecting the
-   main dashboard.
-   ============================================================ */
-
-/* The sidebar section is the outer scroll boundary. */
-section[data-testid="stSidebar"]{
-    width:270px !important;
-    min-width:270px !important;
-    max-width:270px !important;
-    height:100vh !important;
-    max-height:100vh !important;
-    overflow-x:hidden !important;
-    overflow-y:auto !important;
-    overscroll-behavior:contain !important;
-    box-sizing:border-box !important;
-    scrollbar-gutter:stable !important;
-    scrollbar-width:auto !important;
-}
-
-/* Streamlit's immediate sidebar wrapper must not hide the
-   content that extends below the viewport. */
-section[data-testid="stSidebar"] > div:first-child{
-    width:100% !important;
-    min-width:0 !important;
-    max-width:100% !important;
-    height:auto !important;
-    min-height:100vh !important;
-    max-height:none !important;
-    overflow-x:hidden !important;
-    overflow-y:visible !important;
-    box-sizing:border-box !important;
-}
-
-/* Sidebar content: natural document height. */
-section[data-testid="stSidebar"] [data-testid="stSidebarContent"]{
-    width:100% !important;
-    min-width:0 !important;
-    max-width:100% !important;
-    height:auto !important;
-    min-height:100vh !important;
-    max-height:none !important;
-    overflow:visible !important;
-    box-sizing:border-box !important;
-    padding-bottom:28px !important;
-}
-
-/* User-content wrapper must grow with all widgets. */
-section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"]{
-    width:100% !important;
-    min-width:0 !important;
-    max-width:100% !important;
-    height:auto !important;
-    min-height:max-content !important;
-    max-height:none !important;
-    overflow:visible !important;
-    box-sizing:border-box !important;
-    padding-bottom:28px !important;
-}
-
-/* Never create an inner horizontal scrollbar. */
-section[data-testid="stSidebar"] *{
-    max-width:100% !important;
-    box-sizing:border-box !important;
-}
-section[data-testid="stSidebar"] [data-testid="stVerticalBlock"]{
-    width:100% !important;
-    min-width:0 !important;
-}
-
-/* Make the scrollbar obvious on desktop. */
-section[data-testid="stSidebar"]::-webkit-scrollbar{
-    width:9px !important;
-}
-section[data-testid="stSidebar"]::-webkit-scrollbar-track{
-    background:rgba(220,235,239,.55) !important;
-    border-radius:10px !important;
-}
-section[data-testid="stSidebar"]::-webkit-scrollbar-thumb{
-    background:#8aaeb8 !important;
-    border-radius:10px !important;
-    border:2px solid rgba(242,248,251,.9) !important;
-}
-section[data-testid="stSidebar"]::-webkit-scrollbar-thumb:hover{
-    background:#087f86 !important;
-}
-
-/* Keep the status card fully readable when reached. */
-section[data-testid="stSidebar"] .card{
-    width:100% !important;
-    min-width:0 !important;
-    max-width:100% !important;
-    overflow:hidden !important;
-    margin-bottom:12px !important;
-}
-
-/* Sidebar footer text should never force horizontal overflow. */
-section[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
-section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] *{
-    overflow-wrap:anywhere !important;
-    word-break:normal !important;
-}
-
-/* Narrow screens: allow the normal Streamlit mobile sidebar. */
-@media(max-width:900px){
-    section[data-testid="stSidebar"]{
-        width:250px !important;
-        min-width:250px !important;
-        max-width:250px !important;
-    }
-}
 </style>
-</style>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
-# ================================================================
-# FINAL SIDEBAR SCROLL + LAYOUT OVERRIDE
-# ================================================================
-st.markdown(
-    """
-<style>
-/* Sidebar is the only vertical scroll surface. */
-section[data-testid="stSidebar"] {
-    width: 270px !important;
-    min-width: 270px !important;
-    max-width: 270px !important;
-    height: 100vh !important;
-    max-height: 100vh !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    overscroll-behavior: contain !important;
-    scrollbar-gutter: stable !important;
-    box-sizing: border-box !important;
-}
-
-/* Do not create nested scroll containers that trap the wheel. */
-section[data-testid="stSidebar"] > div:first-child,
-section[data-testid="stSidebar"] [data-testid="stSidebarContent"],
-section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
-    box-sizing: border-box !important;
-}
-
-/* Keep every sidebar child inside its 270px canvas. */
-section[data-testid="stSidebar"] * {
-    box-sizing: border-box !important;
-    max-width: 100% !important;
-}
-
-section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
-    width: 100% !important;
-    min-width: 0 !important;
-}
-
-/* Make the scrollbar easy to see on desktop. */
-section[data-testid="stSidebar"]::-webkit-scrollbar {
-    width: 9px !important;
-}
-section[data-testid="stSidebar"]::-webkit-scrollbar-track {
-    background: rgba(220,235,239,.65) !important;
-    border-radius: 10px !important;
-}
-section[data-testid="stSidebar"]::-webkit-scrollbar-thumb {
-    background: #8aaeb8 !important;
-    border-radius: 10px !important;
-    border: 2px solid rgba(242,248,251,.95) !important;
-}
-section[data-testid="stSidebar"]::-webkit-scrollbar-thumb:hover {
-    background: #087f86 !important;
-}
-
-/* Status card can never be clipped horizontally. */
-section[data-testid="stSidebar"] .card {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    overflow: hidden !important;
-}
-section[data-testid="stSidebar"] .status-row {
-    width: 100% !important;
-    min-width: 0 !important;
-    display: grid !important;
-    grid-template-columns: minmax(0,1fr) auto !important;
-    gap: 8px !important;
-}
-section[data-testid="stSidebar"] .status-row span {
-    min-width: 0 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-}
-section[data-testid="stSidebar"] .status-row b {
-    white-space: nowrap !important;
-}
-
-/* Main canvas remains independent of sidebar scrolling. */
-.main .block-container {
-    max-width: 1480px !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-}
-
-/* Accessibility: respect reduced-motion preference. */
-@media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-        scroll-behavior: auto !important;
-    }
-}
-
-@media (max-width: 900px) {
-    section[data-testid="stSidebar"] {
-        width: 250px !important;
-        min-width: 250px !important;
-        max-width: 250px !important;
-    }
-}
-</style>
-""",
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
+st.markdown("""
 <div class="aegis-scene" aria-hidden="true">
   <div class="aegis-orb one"></div>
   <div class="aegis-orb two"></div>
@@ -2175,17 +1802,14 @@ st.markdown(
     <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
   </div>
 </div>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
 # ================================================================
 # SIDEBAR
 # ================================================================
 
 with st.sidebar:
-    st.markdown(
-        """
+    st.markdown("""
     <div class="aegis-brand">
         <div class="brand-mark">🌊</div>
         <div>
@@ -2193,13 +1817,9 @@ with st.sidebar:
             <div class="brand-sub">Flood Risk Intelligence</div>
         </div>
     </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
-    st.markdown(
-        '<div class="nav-caption">Intelligence Modules</div>', unsafe_allow_html=True
-    )
+    st.markdown('<div class="nav-caption">Intelligence Modules</div>', unsafe_allow_html=True)
 
     page = st.radio(
         "Navigation",
@@ -2220,36 +1840,23 @@ with st.sidebar:
     districts = sorted(risk_data["district"].dropna().unique().tolist())
     selected_district = st.selectbox("District", ["All"] + districts)
     selected_risk = st.selectbox("Risk Category", ["All"] + RISK_ORDER)
-    search_subdistrict = st.text_input("Sub-District", placeholder="Search area...")
+    search_subdistrict = st.text_input(
+        "Sub-District",
+        placeholder="Search area..."
+    )
 
     st.divider()
 
-    status_map = {
-        "S3": "S3",
-        "Local fallback": "Local",
-        "Not checked": "Checking",
-    }
-    risk_source = status_map.get(S3_STATUS["risk_data"], S3_STATUS["risk_data"])
-    pin_source = status_map.get(S3_STATUS["pin_data"], S3_STATUS["pin_data"])
-    model_source = status_map.get(S3_STATUS["model"], S3_STATUS["model"])
-    overall_source = get_data_source_label()
-
-    st.markdown(
-        f"""
+    st.markdown("""
     <div class="card">
         <div class="card-title">System Status</div>
-        <div class="status-row"><span>● Risk Dataset</span><b>{risk_source}</b></div>
-        <div class="status-row"><span>● PIN Intelligence</span><b>{pin_source}</b></div>
-        <div class="status-row"><span>● AI Engine</span><b>{model_source}</b></div>
-        <div class="status-row"><span>● Data Source</span><b>{overall_source}</b></div>
+        <div class="status-row"><span>● Risk Dataset</span><b>Ready</b></div>
+        <div class="status-row"><span>● PIN Intelligence</span><b>Ready</b></div>
+        <div class="status-row"><span>● AI Engine</span><b>Loaded</b></div>
     </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
-    st.caption(
-        f"{risk_data['district'].nunique()} districts • {len(risk_data)} sub-district records"
-    )
+    st.caption(f"{risk_data['district'].nunique()} districts • {len(risk_data)} sub-district records")
     st.caption("Historical-model-based decision support")
 
 
@@ -2312,8 +1919,7 @@ filter_active = (
 # HERO
 # ================================================================
 
-st.markdown(
-    """
+st.markdown("""
 <div class="hero">
     <div class="hero-kicker">Rajasthan • Climate & Disaster Risk Intelligence</div>
     <h1>🌊 Aegis</h1>
@@ -2321,21 +1927,16 @@ st.markdown(
     exploring locations, analysing weather-driven risk and supporting disaster preparedness.</p>
     <div class="hero-badge"><span class="hero-live-dot">●</span> Historical intelligence &nbsp; • &nbsp; AI-assisted analysis &nbsp; • &nbsp; Interactive geospatial view</div>
 </div>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
-st.markdown(
-    """
+st.markdown("""
 <div class="aegis-strip">
     <span><i></i><b>AEGIS INTELLIGENCE ONLINE</b></span>
     <span>Historical Risk</span>
     <span>AI Decision Support</span>
     <span>Geospatial Monitoring</span>
 </div>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
 # ================================================================
 # COMMAND CENTER
@@ -2343,15 +1944,12 @@ st.markdown(
 
 if page == "🏠 Command Center":
 
-    st.markdown(
-        """
+    st.markdown("""
     <div class="section-head">
         <div class="section-title">Risk Command Center</div>
         <div class="section-desc">A high-level operational snapshot of Rajasthan's flood-risk landscape.</div>
     </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
     total_subdistricts = len(filtered_data)
     total_districts = filtered_data["district"].nunique()
@@ -2366,15 +1964,12 @@ if page == "🏠 Command Center":
     c3.metric("High + Very High", high + very_high)
     c4.metric("Very High Areas", very_high)
 
-    st.markdown(
-        """
+    st.markdown("""
     <div class="section-head">
         <div class="section-title">Risk Landscape</div>
         <div class="section-desc">Distribution of classified sub-district risk levels.</div>
     </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
     r1, r2, r3, r4 = st.columns(4, gap="medium")
     r1.metric("🟢 Low", low)
@@ -2382,47 +1977,35 @@ if page == "🏠 Command Center":
     r3.metric("🟠 High", high)
     r4.metric("🔴 Very High", very_high)
 
-    left, right = st.columns([1.08, 0.92], gap="large")
+    left, right = st.columns([1.08, .92], gap="large")
 
     with left:
         st.markdown("#### Risk Distribution")
-        counts = (
-            filtered_data["risk_category"]
-            .value_counts()
-            .reindex(RISK_ORDER, fill_value=0)
-        )
+        counts = filtered_data["risk_category"].value_counts().reindex(RISK_ORDER, fill_value=0)
         st.bar_chart(counts, height=310)
 
     with right:
         st.markdown("#### Critical Areas")
-        top = filtered_data.sort_values("flood_affected_percent", ascending=False).head(
-            8
-        )
+        top = filtered_data.sort_values("flood_affected_percent", ascending=False).head(8)
         st.dataframe(
-            top[
-                ["district", "sub_district", "flood_affected_percent", "risk_category"]
-            ].rename(
-                columns={
-                    "district": "District",
-                    "sub_district": "Sub-District",
-                    "flood_affected_percent": "Flood %",
-                    "risk_category": "Risk",
-                }
-            ),
+            top[["district", "sub_district", "flood_affected_percent", "risk_category"]]
+            .rename(columns={
+                "district":"District",
+                "sub_district":"Sub-District",
+                "flood_affected_percent":"Flood %",
+                "risk_category":"Risk"
+            }),
             width="stretch",
             hide_index=True,
             height=310,
         )
 
-    st.markdown(
-        """
+    st.markdown("""
     <div class="section-head">
         <div class="section-title">Filtered Intelligence</div>
         <div class="section-desc">Use the sidebar filters to narrow the operational view.</div>
     </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
     if filter_active:
         st.info(
@@ -2435,22 +2018,16 @@ if page == "🏠 Command Center":
     f1.metric("Matching Records", len(filtered_data))
     f2.metric(
         "High / Very High Matches",
-        int(filtered_data["risk_category"].isin(["High", "Very High"]).sum()),
+        int(filtered_data["risk_category"].isin(["High", "Very High"]).sum())
     )
     f3.metric(
         "Maximum Flood-Affected",
-        (
-            f"{filtered_data['flood_affected_percent'].max():.2f}%"
-            if not filtered_data.empty
-            else "—"
-        ),
+        f"{filtered_data['flood_affected_percent'].max():.2f}%" if not filtered_data.empty else "—"
     )
 
     if search_subdistrict.strip():
         corrected = best_subdistrict_correction(search_subdistrict, risk_data)
-        if corrected and normalize_text(corrected) != normalize_text(
-            search_subdistrict
-        ):
+        if corrected and normalize_text(corrected) != normalize_text(search_subdistrict):
             st.success(
                 f"Spelling corrected automatically: **{search_subdistrict.strip()}** → **{corrected}**"
             )
@@ -2458,24 +2035,15 @@ if page == "🏠 Command Center":
     if not filtered_data.empty:
         st.dataframe(
             filtered_data[
-                [
-                    "risk_rank",
-                    "district",
-                    "sub_district",
-                    "flood_affected_percent",
-                    "risk_category",
-                    "risk_score",
-                ]
-            ].rename(
-                columns={
-                    "risk_rank": "Rank",
-                    "district": "District",
-                    "sub_district": "Sub-District",
-                    "flood_affected_percent": "Flood %",
-                    "risk_category": "Risk",
-                    "risk_score": "Score",
-                }
-            ),
+                ["risk_rank","district","sub_district","flood_affected_percent","risk_category","risk_score"]
+            ].rename(columns={
+                "risk_rank":"Rank",
+                "district":"District",
+                "sub_district":"Sub-District",
+                "flood_affected_percent":"Flood %",
+                "risk_category":"Risk",
+                "risk_score":"Score"
+            }),
             width="stretch",
             hide_index=True,
             height=360,
@@ -2490,20 +2058,17 @@ if page == "🏠 Command Center":
 
 elif page == "📍 Location Intelligence":
 
-    st.markdown(
-        """
+    st.markdown("""
     <div class="section-head">
         <div class="section-title">Location Intelligence</div>
         <div class="section-desc">Search a PIN or explore any district and its available flood-risk profile.</div>
     </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
     pin_tab, district_tab = st.tabs(["📍 PIN Intelligence", "🧭 District Explorer"])
 
     with pin_tab:
-        search_col, info_col = st.columns([1.25, 0.75])
+        search_col, info_col = st.columns([1.25, .75])
 
         with search_col:
             st.markdown("#### Search by PIN")
@@ -2514,15 +2079,12 @@ elif page == "📍 Location Intelligence":
             )
 
         with info_col:
-            st.markdown(
-                """
+            st.markdown("""
             <div class="card">
                 <div class="card-title">Location Resolution</div>
                 <div class="card-muted">PIN → district → available Aegis risk intelligence. The PIN is not treated as a household-level flood prediction.</div>
             </div>
-            """,
-                unsafe_allow_html=True,
-            )
+            """, unsafe_allow_html=True)
 
         if pin.strip():
             pincode = normalize_pincode(pin)
@@ -2539,18 +2101,14 @@ elif page == "📍 Location Intelligence":
                     api_state = str(pin_info.get("state", "")).strip()
 
                     if api_state and normalize_text(api_state) != "RAJASTHAN":
-                        st.warning(
-                            f"PIN {pincode} belongs to {api_state}, not Rajasthan."
-                        )
+                        st.warning(f"PIN {pincode} belongs to {api_state}, not Rajasthan.")
                     else:
                         st.success(f"PIN {pincode} resolved successfully.")
 
                         p1, p2, p3 = st.columns(3, gap="medium")
                         p1.metric("PIN Code", pincode)
                         p2.metric("District", api_district.title() or "—")
-                        p3.metric(
-                            "State", api_state.title() if api_state else "Rajasthan"
-                        )
+                        p3.metric("State", api_state.title() if api_state else "Rajasthan")
 
                         if not pin_data.empty and "pincode" in pin_data.columns:
                             local = pin_data.copy()
@@ -2567,20 +2125,14 @@ elif page == "📍 Location Intelligence":
                                     .tolist()
                                 )
                                 if areas:
-                                    st.info(
-                                        "Associated areas/offices: " + ", ".join(areas)
-                                    )
+                                    st.info("Associated areas/offices: " + ", ".join(areas))
 
                         district_risk = get_district_risk(api_district)
 
                         if district_risk.empty:
-                            st.info(
-                                "The PIN was resolved, but this district is not available in the current Aegis risk dataset."
-                            )
+                            st.info("The PIN was resolved, but this district is not available in the current Aegis risk dataset.")
                         else:
-                            pin_category = RISK_ORDER[
-                                int(district_risk["risk_score"].max()) - 1
-                            ]
+                            pin_category = RISK_ORDER[int(district_risk["risk_score"].max()) - 1]
 
                             st.markdown(
                                 f'<div class="risk-banner risk-{pin_category.lower().replace(" ","-")}"><strong>{RISK_UI[pin_category]["icon"]} {api_district.title()} — {pin_category} Risk</strong><br><span class="card-muted">District-level Aegis profile associated with this PIN.</span></div>',
@@ -2589,44 +2141,24 @@ elif page == "📍 Location Intelligence":
 
                             q1, q2, q3, q4 = st.columns(4, gap="medium")
                             q1.metric("Sub-Districts", len(district_risk))
-                            q2.metric(
-                                "Very High",
-                                int(
-                                    (
-                                        district_risk["risk_category"] == "Very High"
-                                    ).sum()
-                                ),
-                            )
-                            q3.metric(
-                                "High",
-                                int((district_risk["risk_category"] == "High").sum()),
-                            )
-                            q4.metric(
-                                "Max Flood-Affected",
-                                f"{district_risk['flood_affected_percent'].max():.2f}%",
-                            )
+                            q2.metric("Very High", int((district_risk["risk_category"] == "Very High").sum()))
+                            q3.metric("High", int((district_risk["risk_category"] == "High").sum()))
+                            q4.metric("Max Flood-Affected", f"{district_risk['flood_affected_percent'].max():.2f}%")
 
                             st.markdown("#### Risk Areas")
                             st.dataframe(
                                 district_risk[
-                                    [
-                                        "risk_rank",
-                                        "sub_district",
-                                        "flood_affected_percent",
-                                        "risk_category",
-                                        "risk_score",
-                                    ]
-                                ]
-                                .sort_values("flood_affected_percent", ascending=False)
-                                .rename(
-                                    columns={
-                                        "risk_rank": "Rank",
-                                        "sub_district": "Sub-District",
-                                        "flood_affected_percent": "Flood %",
-                                        "risk_category": "Risk",
-                                        "risk_score": "Score",
-                                    }
-                                ),
+                                    ["risk_rank","sub_district","flood_affected_percent","risk_category","risk_score"]
+                                ].sort_values(
+                                    "flood_affected_percent",
+                                    ascending=False
+                                ).rename(columns={
+                                    "risk_rank":"Rank",
+                                    "sub_district":"Sub-District",
+                                    "flood_affected_percent":"Flood %",
+                                    "risk_category":"Risk",
+                                    "risk_score":"Score"
+                                }),
                                 width="stretch",
                                 hide_index=True,
                             )
@@ -2661,9 +2193,7 @@ elif page == "📍 Location Intelligence":
             )
 
             corrected = best_subdistrict_correction(location_query, risk_data)
-            if corrected and normalize_text(corrected) != normalize_text(
-                location_query
-            ):
+            if corrected and normalize_text(corrected) != normalize_text(location_query):
                 st.success(
                     f"Spelling corrected automatically: **{location_query.strip()}** → **{corrected}**"
                 )
@@ -2671,30 +2201,18 @@ elif page == "📍 Location Intelligence":
             if location_matches.empty:
                 st.warning("No matching sub-district found. Try a shorter spelling.")
             else:
-                display_matches = (
-                    location_matches[
-                        [
-                            "district",
-                            "sub_district",
-                            "flood_affected_percent",
-                            "risk_category",
-                            "risk_score",
-                        ]
-                    ]
-                    .sort_values(
-                        "flood_affected_percent",
-                        ascending=False,
-                    )
-                    .rename(
-                        columns={
-                            "district": "District",
-                            "sub_district": "Sub-District",
-                            "flood_affected_percent": "Flood %",
-                            "risk_category": "Risk",
-                            "risk_score": "Score",
-                        }
-                    )
-                )
+                display_matches = location_matches[
+                    ["district","sub_district","flood_affected_percent","risk_category","risk_score"]
+                ].sort_values(
+                    "flood_affected_percent",
+                    ascending=False,
+                ).rename(columns={
+                    "district":"District",
+                    "sub_district":"Sub-District",
+                    "flood_affected_percent":"Flood %",
+                    "risk_category":"Risk",
+                    "risk_score":"Score",
+                })
 
                 st.dataframe(
                     display_matches,
@@ -2704,7 +2222,8 @@ elif page == "📍 Location Intelligence":
 
                 # Show an immediate risk profile for the best fuzzy/exact match.
                 best_match = location_matches.sort_values(
-                    "flood_affected_percent", ascending=False
+                    "flood_affected_percent",
+                    ascending=False
                 ).iloc[0]
                 matched_district = str(best_match["district"])
                 matched_category = str(best_match["risk_category"])
@@ -2720,7 +2239,9 @@ elif page == "📍 Location Intelligence":
                 )
 
                 # The map is district-level, so focus the result on the matched district.
-                match_map = create_map_data(get_district_risk(matched_district))
+                match_map = create_map_data(
+                    get_district_risk(matched_district)
+                )
                 coords = DISTRICT_COORDINATES.get(normalize_text(matched_district))
                 if coords and not match_map.empty:
                     st.markdown("#### Matched District Map")
@@ -2754,11 +2275,7 @@ elif page == "📍 Location Intelligence":
         manual_district = st.selectbox(
             "Select district",
             districts,
-            index=(
-                districts.index(selected_district)
-                if selected_district in districts
-                else 0
-            ),
+            index=districts.index(selected_district) if selected_district in districts else 0,
             key="manual_district_explorer",
         )
 
@@ -2778,31 +2295,22 @@ elif page == "📍 Location Intelligence":
             m1.metric("Sub-Districts", len(manual))
             m2.metric("Very High", int((manual["risk_category"] == "Very High").sum()))
             m3.metric("High", int((manual["risk_category"] == "High").sum()))
-            m4.metric(
-                "Max Flood-Affected", f"{manual['flood_affected_percent'].max():.2f}%"
-            )
+            m4.metric("Max Flood-Affected", f"{manual['flood_affected_percent'].max():.2f}%")
 
             st.markdown("#### Risk Areas")
             st.dataframe(
                 manual[
-                    [
-                        "risk_rank",
-                        "sub_district",
-                        "flood_affected_percent",
-                        "risk_category",
-                        "risk_score",
-                    ]
-                ]
-                .sort_values("flood_affected_percent", ascending=False)
-                .rename(
-                    columns={
-                        "risk_rank": "Rank",
-                        "sub_district": "Sub-District",
-                        "flood_affected_percent": "Flood %",
-                        "risk_category": "Risk",
-                        "risk_score": "Score",
-                    }
-                ),
+                    ["risk_rank","sub_district","flood_affected_percent","risk_category","risk_score"]
+                ].sort_values(
+                    "flood_affected_percent",
+                    ascending=False
+                ).rename(columns={
+                    "risk_rank":"Rank",
+                    "sub_district":"Sub-District",
+                    "flood_affected_percent":"Flood %",
+                    "risk_category":"Risk",
+                    "risk_score":"Score"
+                }),
                 width="stretch",
                 hide_index=True,
             )
@@ -2814,22 +2322,16 @@ elif page == "📍 Location Intelligence":
 
 elif page == "🤖 AI Risk Engine":
 
-    st.markdown(
-        """
+    st.markdown("""
     <div class="section-head">
         <div class="section-title">AI Risk Engine</div>
         <div class="section-desc">Estimate historical flood-affected percentage from weather conditions using the trained Ridge Regression model.</div>
     </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
-    st.info(
-        "AI-assisted historical-model estimate — not a real-time operational flood forecast or exact PIN-level prediction."
-    )
+    st.info("AI-assisted historical-model estimate — not a real-time operational flood forecast or exact PIN-level prediction.")
 
-    st.markdown(
-        """
+    st.markdown("""
     <div class="card" style="margin:10px 0 18px;">
         <div class="card-title">How Aegis thinks</div>
         <div class="card-muted">
@@ -2838,74 +2340,33 @@ elif page == "🤖 AI Risk Engine":
             followed by explainable drivers and preparedness suggestions.
         </div>
     </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
     if model_package is None:
-        st.error(
-            "Prediction model not found. Run `python .\\src\\train_model.py` first."
-        )
+        st.error("Prediction model not found. Run `python .\\src\\train_model.py` first.")
     else:
         prediction_model = model_package["model"]
         prediction_features = model_package["features"]
         defaults = risk_data[prediction_features].median()
 
-        st.markdown(
-            """
+        st.markdown("""
         <div class="ai-control-deck">
             <div class="ai-control-title">🌦️ Weather Input Control Deck</div>
             <div class="ai-control-sub">Adjust the six weather variables below, then run the historical risk analysis.</div>
-        """,
-            unsafe_allow_html=True,
-        )
+        """, unsafe_allow_html=True)
 
         with st.form("prediction_form"):
             a, b = st.columns(2)
             with a:
-                rainfall = st.number_input(
-                    "Annual Rainfall (mm)",
-                    min_value=0.0,
-                    value=float(defaults["avg_annual_rainfall_mm"]),
-                    step=10.0,
-                )
-                temperature = st.number_input(
-                    "Temperature (°C)",
-                    min_value=-10.0,
-                    max_value=60.0,
-                    value=float(defaults["avg_temperature_c"]),
-                    step=0.5,
-                )
-                humidity = st.number_input(
-                    "Humidity (%)",
-                    min_value=0.0,
-                    max_value=100.0,
-                    value=float(defaults["avg_humidity_percent"]),
-                    step=1.0,
-                )
+                rainfall = st.number_input("Annual Rainfall (mm)", min_value=0.0, value=float(defaults["avg_annual_rainfall_mm"]), step=10.0)
+                temperature = st.number_input("Temperature (°C)", min_value=-10.0, max_value=60.0, value=float(defaults["avg_temperature_c"]), step=0.5)
+                humidity = st.number_input("Humidity (%)", min_value=0.0, max_value=100.0, value=float(defaults["avg_humidity_percent"]), step=1.0)
             with b:
-                wind_speed = st.number_input(
-                    "Wind Speed (m/s)",
-                    min_value=0.0,
-                    value=float(defaults["avg_wind_speed_mps"]),
-                    step=0.1,
-                )
-                pressure = st.number_input(
-                    "Pressure (kPa)",
-                    min_value=0.0,
-                    value=float(defaults["avg_pressure_kpa"]),
-                    step=0.1,
-                )
-                max_daily_rainfall = st.number_input(
-                    "Maximum Daily Rainfall (mm)",
-                    min_value=0.0,
-                    value=float(defaults["max_daily_rainfall_mm"]),
-                    step=5.0,
-                )
+                wind_speed = st.number_input("Wind Speed (m/s)", min_value=0.0, value=float(defaults["avg_wind_speed_mps"]), step=0.1)
+                pressure = st.number_input("Pressure (kPa)", min_value=0.0, value=float(defaults["avg_pressure_kpa"]), step=0.1)
+                max_daily_rainfall = st.number_input("Maximum Daily Rainfall (mm)", min_value=0.0, value=float(defaults["max_daily_rainfall_mm"]), step=5.0)
 
-            submitted = st.form_submit_button(
-                "🔮 Analyze Flood Risk", type="primary", width="stretch"
-            )
+            submitted = st.form_submit_button("🔮 Analyze Flood Risk", type="primary", width="stretch")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -2929,15 +2390,12 @@ elif page == "🤖 AI Risk Engine":
                 category = category_from_percent(predicted_percent)
                 info = risk_message(category)
 
-                st.markdown(
-                    f"""
+                st.markdown(f"""
                 <div class="risk-banner risk-{category.lower().replace(" ","-")}">
                     <strong>{RISK_UI[category]["icon"]} {category.upper()} RISK</strong><br>
                     <span class="card-muted">{info["message"]}</span>
                 </div>
-                """,
-                    unsafe_allow_html=True,
-                )
+                """, unsafe_allow_html=True)
 
                 r1, r2, r3 = st.columns(3, gap="medium")
                 r1.metric("Estimated Flood-Affected", f"{predicted_percent:.2f}%")
@@ -2954,34 +2412,22 @@ elif page == "🤖 AI Risk Engine":
                             unsafe_allow_html=True,
                         )
 
-                st.caption(
-                    "Recommendations are AI-assisted decision-support suggestions and do not replace official warnings or disaster-management instructions."
-                )
+                st.caption("Recommendations are AI-assisted decision-support suggestions and do not replace official warnings or disaster-management instructions.")
 
                 st.divider()
                 st.markdown("#### 🧠 Explainable AI — Risk Drivers")
-                st.caption(
-                    "Contributions are calculated from the actual coefficients of the trained Ridge Regression model."
-                )
+                st.caption("Contributions are calculated from the actual coefficients of the trained Ridge Regression model.")
 
                 coefficients = prediction_model.coef_
-                explanation = pd.DataFrame(
-                    {
-                        "Weather Factor": [
-                            FEATURE_LABELS.get(f, f) for f in prediction_features
-                        ],
-                        "Feature": prediction_features,
-                        "Model Coefficient": coefficients,
-                        "Input Value": [input_values[f] for f in prediction_features],
-                    }
-                )
-                explanation["Contribution"] = (
-                    explanation["Model Coefficient"] * explanation["Input Value"]
-                )
+                explanation = pd.DataFrame({
+                    "Weather Factor": [FEATURE_LABELS.get(f, f) for f in prediction_features],
+                    "Feature": prediction_features,
+                    "Model Coefficient": coefficients,
+                    "Input Value": [input_values[f] for f in prediction_features],
+                })
+                explanation["Contribution"] = explanation["Model Coefficient"] * explanation["Input Value"]
                 explanation["Absolute Contribution"] = explanation["Contribution"].abs()
-                explanation = explanation.sort_values(
-                    "Absolute Contribution", ascending=False
-                ).reset_index(drop=True)
+                explanation = explanation.sort_values("Absolute Contribution", ascending=False).reset_index(drop=True)
 
                 pos, neg = st.columns(2)
 
@@ -2992,9 +2438,7 @@ elif page == "🤖 AI Risk Engine":
                         st.caption("No positive contributions for these inputs.")
                     else:
                         for _, row in positive.iterrows():
-                            st.write(
-                                f"• **{row['Weather Factor']}** → +{row['Contribution']:.2f}"
-                            )
+                            st.write(f"• **{row['Weather Factor']}** → +{row['Contribution']:.2f}")
 
                 with neg:
                     st.markdown("**⬇️ Factors reducing the estimate**")
@@ -3003,30 +2447,17 @@ elif page == "🤖 AI Risk Engine":
                         st.caption("No negative contributions for these inputs.")
                     else:
                         for _, row in negative.iterrows():
-                            st.write(
-                                f"• **{row['Weather Factor']}** → {row['Contribution']:.2f}"
-                            )
+                            st.write(f"• **{row['Weather Factor']}** → {row['Contribution']:.2f}")
 
                 with st.expander("View detailed model contributions"):
                     st.dataframe(
-                        explanation[
-                            [
-                                "Weather Factor",
-                                "Model Coefficient",
-                                "Input Value",
-                                "Contribution",
-                            ]
-                        ],
+                        explanation[["Weather Factor","Model Coefficient","Input Value","Contribution"]],
                         width="stretch",
                         hide_index=True,
                     )
 
                 with st.expander("View prediction inputs"):
-                    st.dataframe(
-                        input_data.rename(columns=FEATURE_LABELS),
-                        width="stretch",
-                        hide_index=True,
-                    )
+                    st.dataframe(input_data.rename(columns=FEATURE_LABELS), width="stretch", hide_index=True)
 
             except Exception as error:
                 st.error(f"Prediction could not be generated. Model error: {error}")
@@ -3038,15 +2469,12 @@ elif page == "🤖 AI Risk Engine":
 
 elif page == "📈 Historical Intelligence":
 
-    st.markdown(
-        """
+    st.markdown("""
     <div class="section-head">
         <div class="section-title">Historical Intelligence</div>
         <div class="section-desc">Explore the historical weather and flood-affected data supporting Aegis risk intelligence.</div>
     </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
     data = historical_data if not historical_data.empty else risk_data
 
@@ -3055,33 +2483,25 @@ elif page == "📈 Historical Intelligence":
     else:
         h1, h2, h3, h4 = st.columns(4)
         h1.metric("Records", len(data))
-        h2.metric(
-            "Districts",
-            data["district"].nunique() if "district" in data.columns else "—",
-        )
+        h2.metric("Districts", data["district"].nunique() if "district" in data.columns else "—")
         h3.metric("Period", "1986–2025")
         h4.metric("Core Metric", "Flood-Affected %")
 
         st.markdown("#### Flood History")
         if "flood_affected_percent" in data.columns:
-            st.line_chart(
-                data["flood_affected_percent"].dropna().reset_index(drop=True),
-                height=300,
-            )
+            st.line_chart(data["flood_affected_percent"].dropna().reset_index(drop=True), height=300)
 
         st.markdown("#### Weather Intelligence")
 
         weather_cols = [
-            c
-            for c in [
+            c for c in [
                 "avg_annual_rainfall_mm",
                 "avg_temperature_c",
                 "avg_humidity_percent",
                 "avg_wind_speed_mps",
                 "avg_pressure_kpa",
                 "max_daily_rainfall_mm",
-            ]
-            if c in data.columns
+            ] if c in data.columns
         ]
 
         tabs = st.tabs([FEATURE_LABELS.get(c, c) for c in weather_cols])
@@ -3093,9 +2513,7 @@ elif page == "📈 Historical Intelligence":
         st.markdown("#### Historical Data Explorer")
         st.dataframe(data.head(150), width="stretch", hide_index=True, height=430)
 
-        st.warning(
-            "Historical test results showed substantial prediction error. The model should therefore be presented as historical risk intelligence / decision support rather than a highly accurate operational forecast."
-        )
+        st.warning("Historical test results showed substantial prediction error. The model should therefore be presented as historical risk intelligence / decision support rather than a highly accurate operational forecast.")
 
 
 # ================================================================
@@ -3104,8 +2522,7 @@ elif page == "📈 Historical Intelligence":
 
 elif page == "🗺️ Risk Command Map":
 
-    st.markdown(
-        """
+    st.markdown("""
     <div class="section-head">
         <div class="section-title">Risk Command Map</div>
         <div class="section-desc">Interactive district-level view driven by the active sidebar filters.</div>
@@ -3114,9 +2531,7 @@ elif page == "🗺️ Risk Command Map":
         <div class="card-title">🗺️ Geospatial Risk Surface</div>
         <div class="card-muted">Hover over a marker to inspect district risk intensity, affected-area statistics and the maximum risk score.</div>
     </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
     # IMPORTANT: the map uses the same filtered dataset as the
     # sidebar, so District / Risk / Sub-District filters are live.
@@ -3140,9 +2555,7 @@ elif page == "🗺️ Risk Command Map":
         # If a sub-district search is active and resolves to one district,
         # focus the map on that district.
         if focus is None and search_subdistrict.strip():
-            map_districts = (
-                filtered_data["district"].dropna().astype(str).unique().tolist()
-            )
+            map_districts = filtered_data["district"].dropna().astype(str).unique().tolist()
             if len(map_districts) == 1:
                 focus = map_districts[0]
 
@@ -3154,10 +2567,7 @@ elif page == "🗺️ Risk Command Map":
 
         # Selected district summary above the map.
         if focus:
-            focus_row = map_data[
-                map_data["district"].astype(str).apply(normalize_text)
-                == normalize_text(focus)
-            ]
+            focus_row = map_data[map_data["district"].astype(str).apply(normalize_text) == normalize_text(focus)]
             if not focus_row.empty:
                 fr = focus_row.iloc[0]
                 st.markdown(
@@ -3214,30 +2624,23 @@ elif page == "🗺️ Risk Command Map":
         l4.markdown("🔴 **Very High**")
 
         st.markdown("#### Highest-Risk Districts")
-        map_summary = map_data.sort_values(
-            ["risk_score", "max_flood_percent"], ascending=[False, False]
-        )[
-            [
-                "district",
-                "risk_category",
-                "very_high_risk",
-                "high_risk",
-                "max_flood_percent",
-            ]
-        ].rename(
-            columns={
-                "district": "District",
-                "risk_category": "Risk",
-                "very_high_risk": "Very High Areas",
-                "high_risk": "High Areas",
-                "max_flood_percent": "Max Flood %",
-            }
+        map_summary = (
+            map_data.sort_values(
+                ["risk_score", "max_flood_percent"],
+                ascending=[False, False]
+            )
+            [["district","risk_category","very_high_risk","high_risk","max_flood_percent"]]
+            .rename(columns={
+                "district":"District",
+                "risk_category":"Risk",
+                "very_high_risk":"Very High Areas",
+                "high_risk":"High Areas",
+                "max_flood_percent":"Max Flood %"
+            })
         )
         st.dataframe(map_summary, width="stretch", hide_index=True, height=330)
 
-        st.caption(
-            "Map markers use district headquarters / representative coordinates for visualization; they are not exact sub-district coordinates."
-        )
+        st.caption("Map markers use district headquarters / representative coordinates for visualization; they are not exact sub-district coordinates.")
 
 
 # ================================================================
@@ -3246,12 +2649,9 @@ elif page == "🗺️ Risk Command Map":
 
 st.divider()
 
-st.markdown(
-    f"""
+st.markdown("""
 <div class="footer">
     <b>Aegis</b> • Flood Risk Intelligence Platform<br>
-    Historical-model-based decision support • Rajasthan • {get_data_source_label()}
+    Historical-model-based decision support • Rajasthan
 </div>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
